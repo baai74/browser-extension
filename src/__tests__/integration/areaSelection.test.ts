@@ -52,38 +52,72 @@ describe('Testy integracyjne wyboru obszaru', () => {
   afterAll(async () => {
     await browser.close();
   });
-
-  test('Powinien umożliwić wybór obszaru wejściowego', async () => {
-    // To będzie trudne do przetestowania ponieważ wymaga interakcji z popup rozszerzenia
-    // Ale możemy zasymulować wysłanie wiadomości do content script bezpośrednio
+  
+  test('Powinien umożliwiać wybór obszaru do wysyłania wiadomości', async () => {
+    // Zasymuluj otwarcie popupu rozszerzenia (to jest uproszczone w teście)
+    const extensionId = await getExtensionId(browser);
+    const popupPage = await browser.newPage();
+    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
     
-    await page.evaluate(() => {
-      // Symulujemy wiadomość od background script
-      const event = new CustomEvent('message', {
-        detail: {
-          type: 'START_AREA_SELECTION',
-          payload: {
-            type: 'input'
-          }
-        }
-      });
-      window.dispatchEvent(event);
-    });
+    // Kliknij przycisk wyboru obszaru w popupie
+    await popupPage.waitForSelector('#select-input-area-button');
+    await popupPage.click('#select-input-area-button');
     
-    // Daj czas na aktywację trybu wyboru
-    await page.waitForTimeout(500);
+    // Poczekaj na załadowanie narzędzia wyboru
+    await page.waitForTimeout(1000);
     
-    // Kliknij na element, który chcemy wybrać jako obszar wprowadzania
+    // Symuluj kliknięcie w obszar czatu input
+    await page.waitForSelector('.chat-input');
     await page.click('.chat-input');
     
-    // Sprawdź czy tryb wyboru jest zakończony
-    // W rzeczywistości trudno to zweryfikować bez dostępu do stanu rozszerzenia
-    // Możemy jednak sprawdzić, czy overlay do zaznaczania zniknął
-    const overlayVisible = await page.evaluate(() => {
-      const overlay = document.getElementById('taxy-selection-overlay');
-      return overlay && overlay.style.display !== 'none';
+    // Sprawdź czy selektor został zapisany (uproszczone w teście)
+    await page.waitForTimeout(1000);
+    const selectorSaved = await page.evaluate(() => {
+      return localStorage.getItem('customInputSelector') !== null;
     });
     
-    expect(overlayVisible).toBeFalsy();
-  });
+    expect(selectorSaved).toBeTruthy();
+    
+    await popupPage.close();
+  }, 15000);
+  
+  test('Powinien umożliwiać wybór obszaru do odbierania wiadomości', async () => {
+    // Zasymuluj otwarcie popupu rozszerzenia (to jest uproszczone w teście)
+    const extensionId = await getExtensionId(browser);
+    const popupPage = await browser.newPage();
+    await popupPage.goto(`chrome-extension://${extensionId}/popup.html`);
+    
+    // Kliknij przycisk wyboru obszaru w popupie
+    await popupPage.waitForSelector('#select-output-area-button');
+    await popupPage.click('#select-output-area-button');
+    
+    // Poczekaj na załadowanie narzędzia wyboru
+    await page.waitForTimeout(1000);
+    
+    // Symuluj kliknięcie w obszar chat-messages
+    await page.waitForSelector('.chat-messages');
+    await page.click('.chat-messages');
+    
+    // Sprawdź czy selektor został zapisany (uproszczone w teście)
+    await page.waitForTimeout(1000);
+    const selectorSaved = await page.evaluate(() => {
+      return localStorage.getItem('customOutputSelector') !== null;
+    });
+    
+    expect(selectorSaved).toBeTruthy();
+    
+    await popupPage.close();
+  }, 15000);
 });
+
+// Helper do uzyskania ID rozszerzenia
+async function getExtensionId(browser: Browser): Promise<string> {
+  const page = await browser.newPage();
+  await page.goto('chrome://extensions');
+  
+  // Uproszczona implementacja - w rzeczywistym teście należałoby użyć bardziej
+  // zaawansowanej metody uzyskania ID rozszerzenia
+  const extensionId = 'dummyExtensionId';
+  await page.close();
+  return extensionId;
+}

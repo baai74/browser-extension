@@ -44,54 +44,84 @@ describe('Testy integracyjne komend czatu', () => {
       const input = document.createElement('textarea');
       input.id = 'test-input';
       document.body.appendChild(input);
-    });
-
-    // Symuluj wpisanie komendy
-    await page.type('#test-input', '/taxy click #test-button');
-    
-    // Naciśnij Enter (normalne zachowanie na chatach)
-    await page.keyboard.press('Enter');
-    
-    // Sprawdź czy komenda została przechwycona - możemy sprawdzić wartość pola
-    // która powinna być pusta po przechwyceniu komendy przez rozszerzenie
-    const inputValue = await page.evaluate(() => {
-      return (document.querySelector('#test-input') as HTMLTextAreaElement).value;
-    });
-    
-    expect(inputValue).toBe('');
-    
-    // Możemy też dodać timeout by dać rozszerzeniu czas na przetworzenie
-    await page.waitForTimeout(500);
-  });
-
-  test('Powinien wykonać akcję kliknięcia po poleceniu /taxy click', async () => {
-    // Dodaj testowy przycisk do strony
-    await page.evaluate(() => {
+      
+      // Symulacja czatu
+      const chatContainer = document.createElement('div');
+      chatContainer.className = 'chat-container';
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+      messageDiv.textContent = '/taxy click #test-button';
+      
+      chatContainer.appendChild(messageDiv);
+      document.body.appendChild(chatContainer);
+      
+      // Dodaj przycisk do testowania
       const button = document.createElement('button');
       button.id = 'test-button';
       button.textContent = 'Test Button';
-      button.onclick = function() {
-        document.body.dataset.clicked = 'true';
-      };
       document.body.appendChild(button);
-      
-      const input = document.createElement('textarea');
-      input.id = 'test-input';
-      document.body.appendChild(input);
     });
-
-    // Symuluj wpisanie komendy kliknięcia
-    await page.type('#test-input', '/taxy click #test-button');
-    await page.keyboard.press('Enter');
     
-    // Daj czas na wykonanie akcji
+    // Pozwól na załadowanie rozszerzenia i przechwycenie wiadomości
     await page.waitForTimeout(1000);
     
-    // Sprawdź czy przycisk został kliknięty
-    const wasClicked = await page.evaluate(() => {
-      return document.body.dataset.clicked === 'true';
+    // Symuluj kliknięcie przycisku, które powinno zostać przechwycone przez rozszerzenie
+    const buttonClicked = await page.evaluate(() => {
+      const event = new Event('DOMNodeInserted', { bubbles: true });
+      document.querySelector('.message')?.dispatchEvent(event);
+      
+      // Daj czas na reakcję rozszerzenia
+      return new Promise(resolve => {
+        setTimeout(() => {
+          // Sprawdź czy przycisk został kliknięty
+          const wasClicked = document.querySelector('#test-button')?.getAttribute('data-clicked') === 'true';
+          resolve(wasClicked);
+        }, 2000);
+      });
     });
     
-    expect(wasClicked).toBe(true);
-  });
+    // Oczekujemy że komenda zostanie wykryta i przetworzona
+    expect(buttonClicked).toBeTruthy();
+  }, 10000); // Wydłużony timeout dla testu
+  
+  test('Powinien przetworzyć polecenie /taxy type', async () => {
+    // Dodaj testowe elementy do strony
+    await page.evaluate(() => {
+      const input = document.createElement('input');
+      input.id = 'test-input-field';
+      input.type = 'text';
+      document.body.appendChild(input);
+      
+      // Symulacja czatu
+      const chatContainer = document.createElement('div');
+      chatContainer.className = 'chat-container';
+      
+      const messageDiv = document.createElement('div');
+      messageDiv.className = 'message';
+      messageDiv.textContent = '/taxy type "Testowy tekst" in "#test-input-field"';
+      
+      chatContainer.appendChild(messageDiv);
+      document.body.appendChild(chatContainer);
+    });
+    
+    // Pozwól na załadowanie rozszerzenia i przechwycenie wiadomości
+    await page.waitForTimeout(1000);
+    
+    // Symuluj wstawienie nowego elementu DOM, co powinno wywołać akcję
+    await page.evaluate(() => {
+      const event = new Event('DOMNodeInserted', { bubbles: true });
+      document.querySelector('.message')?.dispatchEvent(event);
+    });
+    
+    // Poczekaj na wykonanie akcji
+    await page.waitForTimeout(2000);
+    
+    // Sprawdź czy tekst został wpisany
+    const inputValue = await page.evaluate(() => {
+      return (document.querySelector('#test-input-field') as HTMLInputElement)?.value;
+    });
+    
+    expect(inputValue).toBe('Testowy tekst');
+  }, 10000);
 });
