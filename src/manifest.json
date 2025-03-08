@@ -15,7 +15,9 @@
   ],
   "host_permissions": [
     "https://chat.openai.com/*",
-    "https://bard.google.com/*"
+    "https://bard.google.com/*",
+    "https://claude.ai/*",
+    "https://perplexity.ai/*"
   ],
   "action": {
     "default_popup": "popup.html",

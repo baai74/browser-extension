@@ -1,109 +1,122 @@
-// ActionExecutor handles execution of commands on the web page
 
-type ActionType = 'click' | 'type' | 'navigate' | 'automate';
+// Executor dla poleceń z czatów AI
 
-interface ActionPayload {
-  action: ActionType;
-  selector?: string;
-  text?: string;
-  instruction?: string;
-}
-
-/**
- * Wykonuje kliknięcie na elemencie określonym przez selektor CSS
- */
-const executeClick = (selector: string) => {
+// Funkcja do wykonywania kliku na element o określonym selektorze
+function executeClick(selector: string) {
   try {
     const element = document.querySelector(selector);
-    if (element) {
-      (element as HTMLElement).click();
-      console.log(`Kliknięto element: ${selector}`);
-      return true;
-    } else {
-      console.error(`Nie znaleziono elementu: ${selector}`);
+    if (!element) {
+      console.error(`Element o selektorze "${selector}" nie został znaleziony`);
       return false;
     }
+    
+    (element as HTMLElement).click();
+    console.log(`Kliknięto element: ${selector}`);
+    return true;
   } catch (error) {
-    console.error(`Błąd podczas klikania elementu ${selector}:`, error);
+    console.error(`Błąd podczas klikania elementu: ${error}`);
     return false;
   }
-};
+}
 
-/**
- * Wpisuje tekst w pole określone przez selektor CSS
- */
-const executeType = (selector: string, text: string) => {
+// Funkcja do wpisywania tekstu w element o określonym selektorze
+function executeType(selector: string, text: string) {
   try {
     const element = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
-    if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
-      element.focus();
-      element.value = text;
-
-      // Wyzwól zdarzenie input, aby powiadomić o zmianie wartości
-      const event = new Event('input', { bubbles: true });
-      element.dispatchEvent(event);
-
-      console.log(`Wpisano tekst "${text}" w element: ${selector}`);
-      return true;
-    } else {
-      console.error(`Nie znaleziono pola tekstowego: ${selector}`);
+    if (!element || (!(element instanceof HTMLInputElement) && !(element instanceof HTMLTextAreaElement))) {
+      console.error(`Element do wpisania tekstu o selektorze "${selector}" nie został znaleziony lub nie jest polem tekstowym`);
       return false;
     }
+    
+    // Fokusuj element
+    element.focus();
+    
+    // Wyczyść istniejący tekst
+    element.value = '';
+    
+    // Wpisz nowy tekst
+    element.value = text;
+    
+    // Wyemituj zdarzenie input, aby powiadomić stronę o zmianie wartości
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    
+    console.log(`Wpisano tekst w element: ${selector}`);
+    return true;
   } catch (error) {
-    console.error(`Błąd podczas wpisywania tekstu w element ${selector}:`, error);
+    console.error(`Błąd podczas wpisywania tekstu: ${error}`);
     return false;
   }
-};
+}
 
-/**
- * Wykonuje złożoną automatyzację na podstawie instrukcji
- */
-const executeAutomation = (instruction: string) => {
-  // To jest bardziej złożona funkcja, która mogłaby analizować instrukcje w języku naturalnym
-  // i wykonywać serię akcji. Na razie wyświetlamy tylko komunikat.
-  console.log(`Wykonywanie automatyzacji na podstawie instrukcji: ${instruction}`);
+// Funkcja do nawigacji do podanego URL
+function executeNavigate(url: string) {
+  try {
+    // Dodaj protokół http:// jeśli nie został podany
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      url = 'https://' + url;
+    }
+    
+    console.log(`Nawigacja do: ${url}`);
+    window.location.href = url;
+    return true;
+  } catch (error) {
+    console.error(`Błąd podczas nawigacji: ${error}`);
+    return false;
+  }
+}
 
-  // Tu można dodać bardziej zaawansowaną logikę, np. wywołania API lub sekwencje akcji
-
+// Funkcja do obsługi złożonych automatyzacji
+function executeAutomate(instruction: string) {
+  // Tutaj można zaimplementować bardziej zaawansowaną logikę automatyzacji
+  // Na razie wysyłamy instrukcję do skryptu tła do dalszego przetwarzania
+  console.log(`Wykonywanie automatyzacji: ${instruction}`);
+  
+  chrome.runtime.sendMessage({
+    type: 'EXECUTE_AUTOMATION',
+    payload: {
+      instruction
+    }
+  });
+  
   return true;
-};
+}
 
-/**
- * Konfiguruje nasłuchiwanie komunikatów o akcjach do wykonania
- */
-export const setupActionListener = () => {
+// Główna funkcja do obsługi poleceń
+function executeAction(action: string, params: any) {
+  console.log(`Wykonywanie akcji: ${action} z parametrami:`, params);
+  
+  switch (action) {
+    case 'click':
+      return executeClick(params);
+    case 'type':
+      if (typeof params === 'object' && params.text && params.selector) {
+        return executeType(params.selector, params.text);
+      } else {
+        console.error('Nieprawidłowe parametry dla akcji type');
+        return false;
+      }
+    case 'navigate':
+      return executeNavigate(params);
+    case 'automate':
+      return executeAutomate(params);
+    default:
+      console.error(`Nieznana akcja: ${action}`);
+      return false;
+  }
+}
+
+// Funkcja ustanawiająca nasłuchiwanie na komunikaty z tła
+function setupActionListener() {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXECUTE_ACTION') {
-      const payload = message.payload as ActionPayload;
-      console.log(`Otrzymano żądanie wykonania akcji: ${payload.action}`);
-
-      let result = false;
-
-      switch (payload.action) {
-        case 'click':
-          if (payload.selector) {
-            result = executeClick(payload.selector);
-          }
-          break;
-        case 'type':
-          if (payload.selector && payload.text) {
-            result = executeType(payload.selector, payload.text);
-          }
-          break;
-        case 'automate':
-          if (payload.instruction) {
-            result = executeAutomation(payload.instruction);
-          }
-          break;
-      }
-
-      // Wyślij odpowiedź z wynikiem wykonania akcji
+      const result = executeAction(message.payload.action, message.payload.params);
       sendResponse({ success: result });
+      return true; // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
     }
-
-    // Zawsze zwracaj true dla asynchronicznych odpowiedzi
-    return true;
   });
+  
+  console.log('Taxy AI Action Executor initialized');
+}
 
-  console.log('Taxy AI: Action Executor initialized');
-};
+// Eksport funkcji do użycia w innych modułach
+export { setupActionListener, executeAction };

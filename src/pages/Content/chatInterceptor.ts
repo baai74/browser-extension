@@ -6,6 +6,7 @@ const SUPPORTED_CHAT_PLATFORMS = [
   { name: 'ChatGPT', selector: '.markdown' },
   { name: 'Google Bard', selector: '.response-content' },
   { name: 'Claude', selector: '.claude-answer' },
+  { name: 'Perplexity', selector: '.prose' },
   // W razie potrzeby dodaj więcej platform
 ];
 
@@ -18,7 +19,7 @@ function extractCommandFromElement(element: Element): string | null {
   
   for (const line of lines) {
     if (line.trim().startsWith(COMMAND_PREFIX)) {
-      return line.trim().substring(COMMAND_PREFIX.length).trim();
+      return line.trim();
     }
   }
   
@@ -28,10 +29,43 @@ function extractCommandFromElement(element: Element): string | null {
 function processCommand(command: string, platform: string) {
   console.log(`Wykryto polecenie z ${platform}: ${command}`);
   
+  // Usuń prefiks polecenia
+  const withoutPrefix = command.substring(COMMAND_PREFIX.length).trim();
+  
   // Analizuj polecenie, aby wyodrębnić akcję i parametry
-  const parts = command.split(' ');
-  const action = parts[0].toLowerCase();
-  const params = parts.slice(1).join(' ');
+  let action, params;
+  
+  // Sprawdź różne rodzaje komend
+  if (withoutPrefix.startsWith('click')) {
+    action = 'click';
+    // Wyodrębnij selektor w cudzysłowach
+    const match = withoutPrefix.match(/click\s+"([^"]+)"/);
+    params = match ? match[1] : '';
+  } else if (withoutPrefix.startsWith('type')) {
+    action = 'type';
+    // Wyodrębnij tekst i selektor w formacie: type "tekst" in "selektor"
+    const match = withoutPrefix.match(/type\s+"([^"]+)"\s+in\s+"([^"]+)"/);
+    if (match) {
+      params = {
+        text: match[1],
+        selector: match[2]
+      };
+    }
+  } else if (withoutPrefix.startsWith('navigate') || withoutPrefix.startsWith('goto')) {
+    action = 'navigate';
+    // Wyodrębnij URL
+    const parts = withoutPrefix.split(' ');
+    params = parts[1] ? parts[1] : '';
+  } else if (withoutPrefix.startsWith('automate')) {
+    action = 'automate';
+    // Wyodrębnij instrukcję w cudzysłowach
+    const match = withoutPrefix.match(/automate\s+"([^"]+)"/);
+    params = match ? match[1] : withoutPrefix.substring('automate'.length).trim();
+  } else {
+    // Jeśli nie rozpoznano konkretnego polecenia, traktuj całość jako polecenie automate
+    action = 'automate';
+    params = withoutPrefix;
+  }
   
   // Wyślij polecenie do skryptu tła (background.js)
   chrome.runtime.sendMessage({
@@ -44,49 +78,80 @@ function processCommand(command: string, platform: string) {
   });
 }
 
-function setupChatListeners() {
-  // Sprawdź każdą obsługiwaną platformę
-  for (const platform of SUPPORTED_CHAT_PLATFORMS) {
-    const responseElements = document.querySelectorAll(platform.selector);
+// Funkcja która obserwuje zmiany w DOM i wykrywa nowe odpowiedzi AI
+function setupChatObserver() {
+  // Funkcja obserwująca zmiany w konkretnym elemencie
+  function observePlatform(platform: { name: string, selector: string }) {
+    // Sprawdź, czy elementy platformy istnieją
+    const elements = document.querySelectorAll(platform.selector);
     
-    responseElements.forEach(element => {
-      // Przetwarzaj istniejącą zawartość
-      const command = extractCommandFromElement(element);
-      if (command) {
-        processCommand(command, platform.name);
-      }
+    if (elements.length > 0) {
+      console.log(`Wykryto platformę: ${platform.name}`);
       
-      // Monitoruj zmiany w treści
-      const observer = new MutationObserver((mutations) => {
-        for (const mutation of mutations) {
-          if (mutation.type === 'characterData' || mutation.type === 'childList') {
-            const updatedCommand = extractCommandFromElement(element);
-            if (updatedCommand) {
-              processCommand(updatedCommand, platform.name);
-            }
-          }
+      // Sprawdź, czy w istniejących elementach są już polecenia
+      elements.forEach(element => {
+        const command = extractCommandFromElement(element);
+        if (command) {
+          processCommand(command, platform.name);
         }
       });
       
-      observer.observe(element, { 
-        characterData: true, 
-        childList: true, 
-        subtree: true 
+      // Obserwuj nowe elementy
+      const observer = new MutationObserver((mutations) => {
+        mutations.forEach(mutation => {
+          if (mutation.type === 'childList' || mutation.type === 'characterData') {
+            const target = mutation.target as Element;
+            
+            // Sprawdź, czy zmieniony element pasuje do selektora
+            if (target.matches && target.matches(platform.selector)) {
+              const command = extractCommandFromElement(target);
+              if (command) {
+                processCommand(command, platform.name);
+              }
+            } else if (target.querySelector) {
+              // Sprawdź, czy któryś z dodanych węzłów pasuje do selektora
+              const matchingElements = target.querySelectorAll(platform.selector);
+              matchingElements.forEach(element => {
+                const command = extractCommandFromElement(element);
+                if (command) {
+                  processCommand(command, platform.name);
+                }
+              });
+            }
+          }
+        });
       });
-    });
+      
+      // Obserwuj zmiany w całym dokumencie
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+    }
+  }
+  
+  // Sprawdź wszystkie obsługiwane platformy
+  SUPPORTED_CHAT_PLATFORMS.forEach(platform => {
+    observePlatform(platform);
+  });
+}
+
+// Uruchom obserwator po załadowaniu strony
+function initChatInterceptor() {
+  console.log('Taxy AI Chat Interceptor initialized');
+  
+  // Jeśli DOM jest już załadowany, ustaw obserwator od razu
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    setupChatObserver();
+  } else {
+    // W przeciwnym razie poczekaj na załadowanie DOM
+    document.addEventListener('DOMContentLoaded', setupChatObserver);
   }
 }
 
-function initialize() {
-  console.log('Taxy chat interceptor initialized');
-  setupChatListeners();
-  
-  // Okresowe sprawdzanie nowych elementów czatu, które mogły zostać załadowane
-  setInterval(setupChatListeners, 5000);
-}
+// Inicjalizacja interceptora
+initChatInterceptor();
 
-// Skonfiguruj obsługę żądań RPC
-watchForRPCRequests();
-
-// Inicjalizuj skrypt treści
-initialize();
+// Eksportujemy funkcje, które mogą być potrzebne w innych modułach
+export { processCommand, extractCommandFromElement };

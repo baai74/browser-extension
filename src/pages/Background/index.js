@@ -1,4 +1,3 @@
-
 // Background script for Taxy AI extension
 
 // Funkcja do pobierania aktywnej karty
@@ -80,7 +79,7 @@ const executeNavigateAction = (url) => {
       if (!url.startsWith('http') && !url.startsWith('https')) {
         url = 'https://' + url;
       }
-      
+
       chrome.tabs.update(tab.id, { url });
     }
   });
@@ -99,36 +98,50 @@ const executeAutomationAction = (instruction) => {
   });
 };
 
-// Nasłuchuj wiadomości z content script
+// Obsługa komend z czatów AI
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'CHAT_COMMAND') {
+    console.log('Otrzymano polecenie z czatu:', message.payload);
+
     const { action, params, source } = message.payload;
-    console.log(`Otrzymano polecenie z ${source}: ${action} ${params}`);
-    
-    // Przetwarzanie poleceń z czatu
-    switch (action) {
-      case 'click':
-        executeClickAction(params);
-        break;
-      case 'type':
-      case 'input':
-        executeTypeAction(params);
-        break;
-      case 'navigate':
-      case 'goto':
-        executeNavigateAction(params);
-        break;
-      case 'automate':
-        executeAutomationAction(params);
-        break;
-      default:
-        console.log(`Nieznana akcja: ${action}`);
-    }
+
+    // Przekaż polecenie do aktualnie aktywnej karty
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        const activeTab = tabs[0];
+
+        // Wyślij komunikat do content script w aktywnej karcie
+        chrome.tabs.sendMessage(activeTab.id, {
+          type: 'EXECUTE_ACTION',
+          payload: {
+            action,
+            params
+          }
+        }, (response) => {
+          console.log('Wynik wykonania akcji:', response);
+        });
+      } else {
+        console.error('Nie znaleziono aktywnej karty');
+      }
+    });
+
+    // Wysyłamy odpowiedź, aby zwolnić port komunikacyjny
+    sendResponse({ success: true });
+    return true; // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
   }
-  
-  // Zawsze zwracaj true dla asynchronicznych odpowiedzi
-  return true;
+
+  if (message.type === 'EXECUTE_AUTOMATION') {
+    console.log('Otrzymano żądanie automatyzacji:', message.payload);
+
+    // Tutaj można zaimplementować bardziej złożoną logikę automatyzacji
+    // wykorzystującą API Taxy i OpenAI
+
+    // Na razie tylko potwierdzamy otrzymanie
+    sendResponse({ success: true });
+    return true;
+  }
 });
+
 
 // Obsługa komunikatów z devtools
 chrome.runtime.onConnect.addListener((port) => {
