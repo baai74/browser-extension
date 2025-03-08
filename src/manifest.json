@@ -13,6 +13,10 @@
     "debugger",
     "management"
   ],
+  "host_permissions": [
+    "https://chat.openai.com/*",
+    "https://bard.google.com/*"
+  ],
   "action": {
     "default_popup": "popup.html",
     "default_icon": "icon-34.png"
