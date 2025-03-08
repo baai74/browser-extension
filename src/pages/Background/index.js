@@ -1,4 +1,12 @@
+
 // Background script for Taxy AI extension
+
+// Funkcja do pobierania aktywnej karty
+const getCurrentTab = async () => {
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  return tabs[0];
+};
+
 const processCommand = (command, source) => {
   console.log(`Processing command from ${source}: ${command}`);
 
@@ -18,6 +26,9 @@ const processCommand = (command, source) => {
     case 'navigate':
     case 'goto':
       executeNavigateAction(params);
+      break;
+    case 'automate':
+      executeAutomationAction(params);
       break;
     default:
       console.log(`Unknown command action: ${action}`);
@@ -57,31 +68,77 @@ const executeTypeAction = (params) => {
         });
       }
     });
+  } else {
+    console.log('Invalid format for type command. Expected: "text" in "selector"');
   }
 };
 
 const executeNavigateAction = (url) => {
   getCurrentTab().then(tab => {
     if (tab) {
+      // Dodaj protokół HTTP jeśli nie został podany
+      if (!url.startsWith('http') && !url.startsWith('https')) {
+        url = 'https://' + url;
+      }
+      
       chrome.tabs.update(tab.id, { url });
     }
   });
 };
 
-const getCurrentTab = async () => {
-  const queryOptions = { active: true, currentWindow: true };
-  const [tab] = await chrome.tabs.query(queryOptions);
-  return tab;
+const executeAutomationAction = (instruction) => {
+  getCurrentTab().then(tab => {
+    if (tab) {
+      chrome.tabs.sendMessage(tab.id, {
+        type: 'EXECUTE_AUTOMATION',
+        payload: {
+          instruction
+        }
+      });
+    }
+  });
 };
 
-// Listen for commands from the content script
+// Nasłuchuj wiadomości z content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'TAXY_CHAT_COMMAND') {
-    processCommand(message.payload.command, message.payload.source);
-    sendResponse({ success: true });
+  if (message.type === 'CHAT_COMMAND') {
+    const { action, params, source } = message.payload;
+    console.log(`Otrzymano polecenie z ${source}: ${action} ${params}`);
+    
+    // Przetwarzanie poleceń z czatu
+    switch (action) {
+      case 'click':
+        executeClickAction(params);
+        break;
+      case 'type':
+      case 'input':
+        executeTypeAction(params);
+        break;
+      case 'navigate':
+      case 'goto':
+        executeNavigateAction(params);
+        break;
+      case 'automate':
+        executeAutomationAction(params);
+        break;
+      default:
+        console.log(`Nieznana akcja: ${action}`);
+    }
+  }
+  
+  // Zawsze zwracaj true dla asynchronicznych odpowiedzi
+  return true;
+});
+
+// Obsługa komunikatów z devtools
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'taxy-devtools') {
+    port.onMessage.addListener((message) => {
+      if (message.type === 'EXECUTE_COMMAND') {
+        processCommand(message.command, 'devtools');
+      }
+    });
   }
 });
 
-var __signature__ = typeof reactHotLoaderGlobal !== 'undefined' ? reactHotLoaderGlobal["default"].signature : function (a) {
-  return a;
-};
+console.log('Taxy AI Background script loaded');

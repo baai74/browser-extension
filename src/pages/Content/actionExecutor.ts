@@ -1,123 +1,109 @@
-
 // ActionExecutor handles execution of commands on the web page
 
-// Function to find element by selector or text content
-const findElement = (selector: string): Element | null => {
+type ActionType = 'click' | 'type' | 'navigate' | 'automate';
+
+interface ActionPayload {
+  action: ActionType;
+  selector?: string;
+  text?: string;
+  instruction?: string;
+}
+
+/**
+ * Wykonuje kliknięcie na elemencie określonym przez selektor CSS
+ */
+const executeClick = (selector: string) => {
   try {
-    // Try direct selector first
-    let element = document.querySelector(selector);
-    
-    // If not found, try finding by text content
-    if (!element) {
-      const allElements = document.querySelectorAll('a, button, input, [role="button"]');
-      for (const el of Array.from(allElements)) {
-        if (el.textContent?.trim().includes(selector)) {
-          element = el;
-          break;
-        }
-      }
+    const element = document.querySelector(selector);
+    if (element) {
+      (element as HTMLElement).click();
+      console.log(`Kliknięto element: ${selector}`);
+      return true;
+    } else {
+      console.error(`Nie znaleziono elementu: ${selector}`);
+      return false;
     }
-    
-    return element;
   } catch (error) {
-    console.error('Error finding element:', error);
-    return null;
+    console.error(`Błąd podczas klikania elementu ${selector}:`, error);
+    return false;
   }
 };
 
-// Click on an element
-export const clickElement = (selector: string): boolean => {
-  const element = findElement(selector);
-  if (!element) {
-    console.error(`Element not found: ${selector}`);
-    return false;
-  }
-  
+/**
+ * Wpisuje tekst w pole określone przez selektor CSS
+ */
+const executeType = (selector: string, text: string) => {
   try {
-    // Create and dispatch mouse events for more natural behavior
-    const mouseDown = new MouseEvent('mousedown', {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    });
-    
-    const mouseUp = new MouseEvent('mouseup', {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    });
-    
-    const click = new MouseEvent('click', {
-      bubbles: true,
-      cancelable: true,
-      view: window
-    });
-    
-    element.dispatchEvent(mouseDown);
-    element.dispatchEvent(mouseUp);
-    element.dispatchEvent(click);
-    
-    return true;
+    const element = document.querySelector(selector) as HTMLInputElement | HTMLTextAreaElement;
+    if (element && (element.tagName === 'INPUT' || element.tagName === 'TEXTAREA')) {
+      element.focus();
+      element.value = text;
+
+      // Wyzwól zdarzenie input, aby powiadomić o zmianie wartości
+      const event = new Event('input', { bubbles: true });
+      element.dispatchEvent(event);
+
+      console.log(`Wpisano tekst "${text}" w element: ${selector}`);
+      return true;
+    } else {
+      console.error(`Nie znaleziono pola tekstowego: ${selector}`);
+      return false;
+    }
   } catch (error) {
-    console.error('Error clicking element:', error);
+    console.error(`Błąd podczas wpisywania tekstu w element ${selector}:`, error);
     return false;
   }
 };
 
-// Type text into an input field
-export const typeIntoElement = (selector: string, text: string): boolean => {
-  const element = findElement(selector) as HTMLInputElement;
-  if (!element || !('value' in element)) {
-    console.error(`Input element not found: ${selector}`);
-    return false;
-  }
-  
-  try {
-    // Focus the element
-    element.focus();
-    
-    // Clear existing value
-    element.value = '';
-    
-    // Trigger input event for reactivity
-    const inputEvent = new Event('input', {
-      bubbles: true,
-      cancelable: true
-    });
-    
-    // Set the new value
-    element.value = text;
-    element.dispatchEvent(inputEvent);
-    
-    // Trigger change event
-    const changeEvent = new Event('change', {
-      bubbles: true
-    });
-    element.dispatchEvent(changeEvent);
-    
-    return true;
-  } catch (error) {
-    console.error('Error typing into element:', error);
-    return false;
-  }
+/**
+ * Wykonuje złożoną automatyzację na podstawie instrukcji
+ */
+const executeAutomation = (instruction: string) => {
+  // To jest bardziej złożona funkcja, która mogłaby analizować instrukcje w języku naturalnym
+  // i wykonywać serię akcji. Na razie wyświetlamy tylko komunikat.
+  console.log(`Wykonywanie automatyzacji na podstawie instrukcji: ${instruction}`);
+
+  // Tu można dodać bardziej zaawansowaną logikę, np. wywołania API lub sekwencje akcji
+
+  return true;
 };
 
-// Handle action execution from messages
+/**
+ * Konfiguruje nasłuchiwanie komunikatów o akcjach do wykonania
+ */
 export const setupActionListener = () => {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'EXECUTE_ACTION') {
-      const { action, selector, text } = message.payload;
-      
+      const payload = message.payload as ActionPayload;
+      console.log(`Otrzymano żądanie wykonania akcji: ${payload.action}`);
+
       let result = false;
-      if (action === 'click') {
-        result = clickElement(selector);
-      } else if (action === 'type') {
-        result = typeIntoElement(selector, text);
+
+      switch (payload.action) {
+        case 'click':
+          if (payload.selector) {
+            result = executeClick(payload.selector);
+          }
+          break;
+        case 'type':
+          if (payload.selector && payload.text) {
+            result = executeType(payload.selector, payload.text);
+          }
+          break;
+        case 'automate':
+          if (payload.instruction) {
+            result = executeAutomation(payload.instruction);
+          }
+          break;
       }
-      
+
+      // Wyślij odpowiedź z wynikiem wykonania akcji
       sendResponse({ success: result });
     }
-    
-    return true; // Keep the message channel open for async response
+
+    // Zawsze zwracaj true dla asynchronicznych odpowiedzi
+    return true;
   });
+
+  console.log('Taxy AI: Action Executor initialized');
 };

@@ -1,14 +1,15 @@
 
 import { watchForRPCRequests } from '../../helpers/pageRPC';
 
-// List of supported AI chat interfaces
+// Lista obsługiwanych interfejsów czatu AI
 const SUPPORTED_CHAT_PLATFORMS = [
   { name: 'ChatGPT', selector: '.markdown' },
   { name: 'Google Bard', selector: '.response-content' },
-  // Add more platforms as needed
+  { name: 'Claude', selector: '.claude-answer' },
+  // W razie potrzeby dodaj więcej platform
 ];
 
-// Command prefix to identify Taxy commands
+// Prefiks polecenia do identyfikacji poleceń Taxy
 const COMMAND_PREFIX = '/taxy';
 
 function extractCommandFromElement(element: Element): string | null {
@@ -24,22 +25,41 @@ function extractCommandFromElement(element: Element): string | null {
   return null;
 }
 
+function processCommand(command: string, platform: string) {
+  console.log(`Wykryto polecenie z ${platform}: ${command}`);
+  
+  // Analizuj polecenie, aby wyodrębnić akcję i parametry
+  const parts = command.split(' ');
+  const action = parts[0].toLowerCase();
+  const params = parts.slice(1).join(' ');
+  
+  // Wyślij polecenie do skryptu tła (background.js)
+  chrome.runtime.sendMessage({
+    type: 'CHAT_COMMAND',
+    payload: {
+      action,
+      params,
+      source: platform
+    }
+  });
+}
+
 function setupChatListeners() {
-  // Check each supported platform
+  // Sprawdź każdą obsługiwaną platformę
   for (const platform of SUPPORTED_CHAT_PLATFORMS) {
     const responseElements = document.querySelectorAll(platform.selector);
     
     responseElements.forEach(element => {
-      // Process existing content
+      // Przetwarzaj istniejącą zawartość
       const command = extractCommandFromElement(element);
       if (command) {
         processCommand(command, platform.name);
       }
       
-      // Set up mutation observer to catch new responses
+      // Monitoruj zmiany w treści
       const observer = new MutationObserver((mutations) => {
         for (const mutation of mutations) {
-          if (mutation.type === 'childList' || mutation.type === 'characterData') {
+          if (mutation.type === 'characterData' || mutation.type === 'childList') {
             const updatedCommand = extractCommandFromElement(element);
             if (updatedCommand) {
               processCommand(updatedCommand, platform.name);
@@ -48,39 +68,25 @@ function setupChatListeners() {
         }
       });
       
-      observer.observe(element, {
-        childList: true,
-        characterData: true,
-        subtree: true
+      observer.observe(element, { 
+        characterData: true, 
+        childList: true, 
+        subtree: true 
       });
     });
   }
 }
 
-function processCommand(command: string, platform: string) {
-  console.log(`Received Taxy command from ${platform}: ${command}`);
-  
-  // Send the command to the background script for processing
-  chrome.runtime.sendMessage({
-    type: 'TAXY_CHAT_COMMAND',
-    payload: {
-      command,
-      source: platform
-    }
-  });
-}
-
-// Initialize when the content script loads
 function initialize() {
   console.log('Taxy chat interceptor initialized');
   setupChatListeners();
   
-  // Re-check periodically for new chat elements that might have loaded
+  // Okresowe sprawdzanie nowych elementów czatu, które mogły zostać załadowane
   setInterval(setupChatListeners, 5000);
 }
 
-// Set up RPC requests handling
+// Skonfiguruj obsługę żądań RPC
 watchForRPCRequests();
 
-// Initialize the content script
+// Inicjalizuj skrypt treści
 initialize();
