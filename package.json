@@ -12,7 +12,9 @@
     "start": "node utils/webserver.js",
     "prettier": "prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md}'",
     "test": "jest",
-    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx"
+    "lint": "eslint src/ --ext .js,.jsx,.ts,.tsx",
+    "test:integration": "jest --config=jest.integration.config.js",
+    "test:integration:watch": "jest --config=jest.integration.config.js --watch"
   },
   "dependencies": {
     "@chakra-ui/icons": "^2.0.16",
