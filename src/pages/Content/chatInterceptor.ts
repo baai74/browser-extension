@@ -1,5 +1,6 @@
 import { t, getCurrentLocale } from '../../common/i18n';
 import { showSuccess, showError, showInfo } from '../../common/notifications';
+import selectionManager from './selectionManager';
 
 // Lista wspieranych platform czatowych
 const SUPPORTED_PLATFORMS = {
@@ -454,3 +455,109 @@ function interceptChatCommand() {
     //  It would likely involve getting the text from the active input, checking for prefixes, 
     //  and calling processCommand.  This is a placeholder.
 }
+
+// Implementacja interceptora czatu dla różnych platform
+export class ChatInterceptor {
+  private initialized: boolean = false;
+  private platform: string = 'unknown';
+  private customInputSelector: string | null = null;
+  private customOutputSelector: string | null = null;
+
+  constructor() {
+    this.detectPlatform();
+  }
+
+  private detectPlatform() {
+    const url = window.location.href;
+
+    if (url.includes('chat.openai.com')) {
+      this.platform = 'chatgpt';
+    } else if (url.includes('bard.google.com')) {
+      this.platform = 'bard';
+    } else {
+      this.platform = 'unknown';
+    }
+
+    console.log(`Wykryto platformę czatu: ${this.platform}`);
+  }
+
+  public initialize() {
+    if (this.initialized) return;
+
+    this.setupInterception();
+    this.initialized = true;
+
+    // Wczytaj zapisane selektory z pamięci
+    this.loadSavedSelectors();
+
+    console.log('Interceptor czatu zainicjalizowany');
+  }
+
+  private loadSavedSelectors() {
+    chrome.storage.local.get(['customInputSelector', 'customOutputSelector'], (result) => {
+      if (result.customInputSelector) {
+        this.customInputSelector = result.customInputSelector;
+        console.log('Wczytano niestandardowy selektor dla pola wprowadzania:', this.customInputSelector);
+      }
+
+      if (result.customOutputSelector) {
+        this.customOutputSelector = result.customOutputSelector;
+        console.log('Wczytano niestandardowy selektor dla obszaru odpowiedzi:', this.customOutputSelector);
+      }
+    });
+  }
+
+  private setupInterception() {
+    // Obserwacja wprowadzanych komend w polu tekstowym
+    document.addEventListener('keydown', this.handleKeyDown.bind(this));
+
+    // Nasłuchuj wiadomości o wybraniu obszaru
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message.type === 'START_AREA_SELECTION') {
+        selectionManager.startSelectionMode(message.payload.type);
+      } else if (message.type === 'AREA_SELECTED') {
+        if (message.payload.type === 'input') {
+          this.customInputSelector = message.payload.selector;
+          chrome.storage.local.set({ 'customInputSelector': message.payload.selector });
+        } else if (message.payload.type === 'output') {
+          this.customOutputSelector = message.payload.selector;
+          chrome.storage.local.set({ 'customOutputSelector': message.payload.selector });
+        }
+      }
+    });
+  }
+
+  private handleKeyDown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+        // Sprawdź czy znajdujemy się w polu tekstowym lub obszarze tekstowym
+        const activeElement = document.activeElement as HTMLElement;
+        if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+          setTimeout(() => {
+            this.interceptChatCommand();
+          }, 100);
+        }
+    }
+  }
+    private interceptChatCommand() {
+        let inputElement: HTMLElement | null = null;
+        if (this.customInputSelector) {
+          inputElement = document.querySelector(this.customInputSelector);
+        } else {
+          inputElement = document.activeElement as HTMLElement;
+        }
+
+        if (inputElement && inputElement.tagName === 'TEXTAREA' || inputElement.tagName === 'INPUT') {
+          const currentValue = (inputElement.tagName === 'TEXTAREA') ? (inputElement as HTMLTextAreaElement).value : (inputElement as HTMLInputElement).value;
+          if (hasCommandPrefix(currentValue)) {
+            processCommand(currentValue, this.platform);
+            if (inputElement.tagName === 'TEXTAREA') {
+              (inputElement as HTMLTextAreaElement).value = '';
+            } else {
+              (inputElement as HTMLInputElement).value = '';
+            }
+          }
+        }
+    }
+}
+
+export {ChatInterceptor};

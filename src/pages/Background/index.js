@@ -198,6 +198,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
     return true;
   }
+  
+  // Obsługa wyboru obszarów na stronie
+  if (request.type === 'START_AREA_SELECTION') {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs.length > 0) {
+        chrome.tabs.sendMessage(tabs[0].id, request);
+      }
+    });
+    return true;
+  }
+  
+  // Zapisanie wybranych obszarów
+  if (request.type === 'AREA_SELECTED') {
+    console.log('Obszar został wybrany:', request.payload);
+    
+    // Tutaj możemy zapisać selektor w pamięci lokalnej
+    chrome.storage.local.set({
+      [`custom${request.payload.type === 'input' ? 'Input' : 'Output'}Selector`]: request.payload.selector
+    });
+    
+    // Powiadom użytkownika
+    chrome.notifications.create({
+      type: 'basic',
+      iconUrl: 'icon-128.png',
+      title: 'Taxy AI',
+      message: `Wybrano obszar ${request.payload.type === 'input' ? 'do wysyłania' : 'do odbierania'} wiadomości`
+    });
+    
+    return true;
+  }
 
   // Obsługa innych typów wiadomości...
 
