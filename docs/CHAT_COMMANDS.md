@@ -1,96 +1,92 @@
 
-# Sterowanie przeglądarką przez czat AI
+# Komendy Czatu Taxy AI
 
-Rozszerzenie Taxy AI pozwala na sterowanie przeglądarką bezpośrednio z interfejsów czatów AI, takich jak ChatGPT i Google Bard.
+Rozszerzenie Taxy AI obsługuje komendy czatu, które pozwalają na sterowanie przeglądarką bezpośrednio z interfejsu czatu takich platform jak ChatGPT, Google Bard, Claude czy Perplexity.
 
-## Dostępne polecenia
+## Dostępne komendy
 
-Aby wydać polecenie, wpisz `/taxy` na początku wiersza w odpowiedzi AI, a następnie podaj jedno z poniższych poleceń:
+Wszystkie komendy zaczynają się od prefiksu `/taxy` (lub `/taksówka` w języku polskim):
 
-- `/taxy click "selector"` - Kliknięcie elementu określonego przez selektor CSS
-- `/taxy type "tekst" in "selector"` - Wpisuje tekst w pole określone przez selektor CSS
-- `/taxy navigate example.com` - Przejście do określonego URL
-- `/taxy goto example.com` - Alias dla polecenia navigate
-- `/taxy automate "instrukcja"` - Wykonanie złożonej automatyzacji na podstawie instrukcji w języku naturalnym
+### Podstawowe komendy
+
+| Komenda | Składnia | Opis | Przykład |
+|---------|----------|------|----------|
+| click | `/taxy click [selektor]` | Kliknij element na stronie | `/taxy click #submit-button` |
+| type | `/taxy type [selektor] [tekst]` | Wpisz tekst w pole wejściowe | `/taxy type #search-input Szukany tekst` |
+| navigate | `/taxy navigate [url]` | Przejdź do podanego adresu URL | `/taxy navigate replit.com` |
+| wait | `/taxy wait [ms]` | Czekaj określony czas (w milisekundach) | `/taxy wait 2000` |
+
+### Zaawansowane komendy
+
+| Komenda | Składnia | Opis | Przykład |
+|---------|----------|------|----------|
+| scroll | `/taxy scroll [x] [y]` lub `/taxy scroll to [selektor]` | Przewiń stronę do określonej pozycji lub elementu | `/taxy scroll 0 500` lub `/taxy scroll to #section-2` |
+| drag | `/taxy drag [źródło] to [cel]` | Przeciągnij element z jednego miejsca do drugiego | `/taxy drag #draggable to #dropzone` |
+| screenshot | `/taxy screenshot` lub `/taxy screenshot [selektor]` | Wykonaj zrzut ekranu całej strony lub wybranego elementu | `/taxy screenshot` lub `/taxy screenshot .product-card` |
+| automate | `/taxy automate [instrukcja]` | Wykonaj złożoną automatyzację na podstawie instrukcji w języku naturalnym | `/taxy automate wypełnij formularz danymi: Jan Kowalski, jan@example.com, +48123456789` |
+
+### Pomoc
+
+| Komenda | Składnia | Opis | Przykład |
+|---------|----------|------|----------|
+| help | `/taxy help` | Wyświetl listę dostępnych komend | `/taxy help` |
+
+## Obsługiwane platformy
+
+Rozszerzenie obecnie obsługuje następujące platformy czatowe:
+
+- OpenAI ChatGPT (chat.openai.com)
+- Google Bard (bard.google.com)
+- Anthropic Claude (claude.ai)
+- Perplexity AI (perplexity.ai)
+
+Na innych stronach rozszerzenie będzie próbowało wykryć pola tekstowe do wprowadzania komend, ale funkcjonalność może być ograniczona.
+
+## Wielojęzyczność
+
+Rozszerzenie obsługuje komendy w następujących językach:
+
+- English (en): `/taxy`
+- Polski (pl): `/taxy` lub `/taksówka`
+
+Domyślny język jest wybierany na podstawie ustawień przeglądarki, ale można go zmienić w ustawieniach rozszerzenia.
 
 ## Przykłady użycia
 
-- `/taxy click ".submit-button"`
-- `/taxy type "Hello world" in "#search-input"`
-- `/taxy navigate google.com`
-- `/taxy automate "Wypełnij formularz kontaktowy, podając imię Jan Kowalski i email test@example.com"`
+### Wyszukiwanie w Google
 
-## Wskazówki
-
-1. Selektory CSS powinny być ujęte w cudzysłowy
-2. W przypadku polecenia `type`, format to `"tekst" in "selektor"`
-3. Dla URL nie są wymagane cudzysłowy, a protokół http:// jest dodawany automatycznie jeśli nie jest podany
-4. Aby zobaczyć selektor elementu na stronie, kliknij prawym przyciskiem myszy i wybierz "Zbadaj" lub "Inspect Element"
-# Komendy Czatu Taxy AI
-
-Ten dokument opisuje dostępne polecenia, które można wydawać rozszerzeniu Taxy AI bezpośrednio z czatów AI.
-
-## Podstawowe Polecenia
-
-Wszystkie polecenia zaczynają się od prefiksu `/taxy`.
-
-### Nawigacja i Interakcja
-
-| Polecenie | Składnia | Opis | Przykład |
-|-----------|----------|------|----------|
-| **click** | `/taxy click [selektor]` | Kliknij element na stronie | `/taxy click #submit-button` |
-| **type** | `/taxy type [selektor] [tekst]` lub `/taxy type [selektor]|[tekst]` | Wpisz tekst w polu formularza | `/taxy type #search-input szukana fraza` lub `/taxy type #search-input|szukana fraza` |
-| **navigate** | `/taxy navigate [url]` | Przejdź do określonego URL | `/taxy navigate google.com` |
-
-### Zaawansowane Operacje
-
-| Polecenie | Składnia | Opis | Przykład |
-|-----------|----------|------|----------|
-| **scroll** | `/taxy scroll [top/bottom/selektor/x,y]` | Przewiń stronę | `/taxy scroll bottom` lub `/taxy scroll #section-3` lub `/taxy scroll 0,500` |
-| **drag** | `/taxy drag [źródło]|[cel]` | Przeciągnij element do innego miejsca | `/taxy drag #drag-me|#drop-zone` |
-| **wait** | `/taxy wait [czas_w_ms]` | Poczekaj określony czas | `/taxy wait 2000` |
-| **screenshot** | `/taxy screenshot [opcjonalny selektor]` | Wykonaj zrzut ekranu | `/taxy screenshot` lub `/taxy screenshot .main-content` |
-
-### Automatyzacja
-
-| Polecenie | Składnia | Opis | Przykład |
-|-----------|----------|------|----------|
-| **automate** | `/taxy automate [instrukcja]` | Wykonaj złożoną sekwencję operacji | `/taxy automate wypełnij formularz kontaktowy` |
-
-## Formaty Komend
-
-Komendy Taxy AI obsługują różne formaty zapisu parametrów:
-
-1. **Standardowy format**: `/taxy akcja parametry`
-2. **Format z nawiasami kwadratowymi**: `/taxy akcja [parametry]`
-3. **Format z cudzysłowami**: `/taxy akcja "parametry"`
-4. **Format JSON**: `/taxy akcja {"parametr1": "wartość1", "parametr2": "wartość2"}`
-
-## Przykłady Użycia
+```
+/taxy navigate google.com
+/taxy type input[name="q"] robotyka edukacyjna
+/taxy click input[value="Szukaj w Google"]
+```
 
 ### Wypełnianie formularza
 
 ```
-/taxy click #contact-form
-/taxy type #name|Jan Kowalski
-/taxy type #email|jan.kowalski@example.com
-/taxy type #message|Witam, proszę o kontakt w sprawie współpracy.
+/taxy click #email
+/taxy type #email jan.kowalski@example.com
+/taxy click #password
+/taxy type #password MojeTajneHasło123
 /taxy click #submit-button
 ```
 
-### Wyszukiwanie i nawigacja
+### Automatyzacja złożonych zadań
 
 ```
-/taxy navigate google.com
-/taxy type input[name="q"]|najlepsze restauracje w Warszawie
-/taxy click input[name="btnK"]
-/taxy wait 2000
-/taxy click #search-result-1
+/taxy automate Przejdź do gmail.com, utwórz nową wiadomość, adresuj ją do jan@example.com, z tematem "Spotkanie", treścią "Cześć Jan, czy możemy spotkać się jutro o 15:00?" i wyślij
 ```
 
-### Przeciąganie elementów
+## Najlepsze praktyki
 
-```
-/taxy drag #task-1|#completed-tasks
-/taxy screenshot .task-board
-```
+1. Używaj jak najbardziej precyzyjnych selektorów CSS, aby jednoznacznie zidentyfikować elementy strony.
+2. Między poszczególnymi akcjami używaj komend `/taxy wait`, aby dać stronie czas na załadowanie i przetworzenie zmian.
+3. Dla złożonych automatyzacji używaj komendy `/taxy automate` z opisem w języku naturalnym.
+4. Używaj `/taxy screenshot` do weryfikacji stanu strony podczas automatyzacji.
+
+## Rozwiązywanie problemów
+
+- Jeśli komenda nie działa, sprawdź poprawność selektora CSS.
+- Jeśli strona się zmienia (np. dynamicznie generowany interfejs), selektory mogą przestać działać.
+- Niektóre strony mogą blokować automatyczne interakcje jako środek bezpieczeństwa.
+- W przypadku problemów, używaj dłuższych czasów oczekiwania między akcjami.

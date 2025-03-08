@@ -11,7 +11,8 @@
     "storage",
     "clipboardWrite",
     "debugger",
-    "management"
+    "management",
+    "notifications"
   ],
   "host_permissions": [
     "https://chat.openai.com/*",

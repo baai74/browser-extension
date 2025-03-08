@@ -198,35 +198,66 @@ function executeScreenshot(selector: string) {
   return true;
 }
 
+import { showSuccess, showError, showInfo } from '../../common/notifications';
+import { t } from '../../common/i18n';
+
 // Główna funkcja do obsługi poleceń
 function executeAction(action: string, params: any) {
   console.log(`Wykonywanie akcji: ${action} z parametrami:`, params);
   
-  switch (action) {
-    case 'click':
-      return executeClick(params);
-    case 'type':
-      if (typeof params === 'object' && params.text && params.selector) {
-        return executeType(params.selector, params.text);
-      } else {
-        console.error('Nieprawidłowe parametry dla akcji type');
-        return false;
-      }
-    case 'navigate':
-      return executeNavigate(params);
-    case 'automate':
-      return executeAutomate(params);
-    case 'scroll':
-      return executeScroll(params);
-    case 'drag':
-      return executeDrag(params);
-    case 'wait':
-      return executeWait(params);
-    case 'screenshot':
-      return executeScreenshot(params);
-    default:
-      console.error(`Nieznana akcja: ${action}`);
-      return false;
+  // Pokazujemy powiadomienie o rozpoczęciu akcji
+  showInfo(t('notifications.actionStarted', { action: t(`actions.${action}`) }));
+  
+  let result = false;
+  
+  try {
+    switch (action) {
+      case 'click':
+        result = executeClick(params);
+        break;
+      case 'type':
+        if (typeof params === 'object' && params.text && params.selector) {
+          result = executeType(params.selector, params.text);
+        } else {
+          console.error('Nieprawidłowe parametry dla akcji type');
+          throw new Error('Nieprawidłowe parametry dla akcji type');
+        }
+        break;
+      case 'navigate':
+        result = executeNavigate(params);
+        break;
+      case 'automate':
+        result = executeAutomate(params);
+        break;
+      case 'scroll':
+        result = executeScroll(params);
+        break;
+      case 'drag':
+        result = executeDrag(params);
+        break;
+      case 'wait':
+        result = executeWait(params);
+        break;
+      case 'screenshot':
+        result = executeScreenshot(params);
+        break;
+      default:
+        console.error(`Nieznana akcja: ${action}`);
+        throw new Error(`Nieznana akcja: ${action}`);
+    }
+    
+    // Pokazujemy powiadomienie o sukcesie
+    if (result) {
+      showSuccess(t('notifications.actionCompleted', { action: t(`actions.${action}`) }));
+    } else {
+      showError(t('notifications.actionFailed', { action: t(`actions.${action}`), error: 'Akcja nie powiodła się' }));
+    }
+    
+    return result;
+  } catch (error) {
+    // Pokazujemy powiadomienie o błędzie
+    showError(t('notifications.actionFailed', { action: t(`actions.${action}`), error: error.message }));
+    return false;
   }
 }
 

@@ -98,73 +98,70 @@ const executeAutomationAction = (instruction) => {
   });
 };
 
-// Obsługa komend z czatów AI
-chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
-  if (message.type === 'CHAT_COMMAND') {
-    console.log('Otrzymano polecenie z czatu:', message.payload);
-    var _message$payload = message.payload,
-      action = _message$payload.action,
-      params = _message$payload.params,
-      source = _message$payload.source;
+// Obsługa komend z przechwytywacza czatu
+chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.type === 'CHAT_COMMAND') {
+    console.log('Otrzymano komendę z czatu:', request.payload);
+    const { action, params, source } = request.payload;
 
-    // Przekaż polecenie do aktualnie aktywnej karty
-    chrome.tabs.query({
-      active: true,
-      currentWindow: true
-    }, function (tabs) {
+    // Przekaż polecenie do aktywnej karty
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (tabs.length > 0) {
-        var activeTab = tabs[0];
-
-        // Wyślij komunikat do content script w aktywnej karcie
-        chrome.tabs.sendMessage(activeTab.id, {
-          type: 'EXECUTE_ACTION',
-          payload: {
-            action: action,
-            params: params
+        chrome.tabs.sendMessage(
+          tabs[0].id, 
+          {
+            type: 'EXECUTE_ACTION',
+            payload: {
+              action,
+              params
+            }
+          },
+          (response) => {
+            // Odpowiedź od content script z wynikiem wykonania akcji
+            console.log('Odpowiedź z content script:', response);
+            // Przekaż odpowiedź z powrotem do nadawcy
+            sendResponse(response);
           }
-        }, function (response) {
-          console.log('Wynik wykonania akcji:', response);
-        });
+        );
       } else {
-        console.error('Nie znaleziono aktywnej karty');
-      }
-    });
-
-    // Wysyłamy odpowiedź, aby zwolnić port komunikacyjny
-    sendResponse({
-      success: true
-    });
-    return true; // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
-  } else if (message.type === 'TAKE_SCREENSHOT') {
-    // Obsługa żądania wykonania zrzutu ekranu
-    chrome.tabs.captureVisibleTab(null, { format: 'png' }, function(dataUrl) {
-      if (chrome.runtime.lastError) {
-        console.error("Błąd podczas wykonywania zrzutu ekranu:", chrome.runtime.lastError);
-        return;
-      }
-
-      // Jeśli podano selektor, wyślij URL danych do content script do przycięcia
-      if (message.payload && message.payload.selector && message.payload.selector !== 'full') {
-        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-          if (tabs.length > 0) {
-            var activeTab = tabs[0];
-            chrome.tabs.sendMessage(activeTab.id, {
-              type: 'CROP_SCREENSHOT',
-              payload: {
-                dataUrl: dataUrl,
-                selector: message.payload.selector
-              }
-            });
-          }
+        // Brak aktywnych kart
+        sendResponse({ 
+          success: false, 
+          error: 'Nie znaleziono aktywnej karty przeglądarki' 
         });
-      } else {
-        // Zapisz zrzut ekranu lub wyświetl go w nowej karcie
-        var screenshotUrl = dataUrl;
-        chrome.tabs.create({ url: screenshotUrl });
       }
     });
 
-    sendResponse({ success: true });
+    // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
+    return true;
+  }
+
+  // Obsługa innych typów wiadomości...
+
+  // Automatyczne wykonanie zrzutu ekranu
+  if (request.type === 'TAKE_SCREENSHOT') {
+    chrome.tabs.captureVisibleTab(null, { format: 'png' }, (dataUrl) => {
+      console.log('Wykonano zrzut ekranu');
+
+      // Opcjonalne zapisanie zrzutu lub wysłanie go do innej części rozszerzenia
+      chrome.storage.local.set({ 'lastScreenshot': dataUrl }, () => {
+        console.log('Zrzut ekranu zapisany w storage');
+        sendResponse({ success: true, dataUrl });
+      });
+    });
+    return true;
+  }
+
+  // Obsługa automatyzacji
+  if (request.type === 'EXECUTE_AUTOMATION') {
+    const { instruction } = request.payload;
+    console.log('Przetwarzanie automatyzacji:', instruction);
+
+    // Tutaj można zaimplementować bardziej złożoną logikę automatyzacji,
+    // np. użycie API rozpoznawania języka naturalnego do tłumaczenia instrukcji na sekwencję poleceń
+
+    // Na razie po prostu informujemy o zakończeniu
+    sendResponse({ success: true, message: 'Automatyzacja w trakcie implementacji' });
     return true;
   }
 });
