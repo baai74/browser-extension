@@ -1,4 +1,3 @@
-
 import { t, getCurrentLocale } from '../../common/i18n';
 import { showSuccess, showError, showInfo } from '../../common/notifications';
 
@@ -31,13 +30,13 @@ function hasCommandPrefix(text: string): boolean {
 // Funkcja do identyfikacji platformy czatu
 function identifyPlatform(): string {
   const hostname = window.location.hostname;
-  
+
   for (const [platform, domain] of Object.entries(SUPPORTED_PLATFORMS)) {
     if (hostname.includes(domain)) {
       return platform;
     }
   }
-  
+
   return 'UNKNOWN';
 }
 
@@ -46,18 +45,18 @@ function processCommand(command: string, source: string): void {
   // Usuń prefiks komendy
   const prefixes = getCommandPrefixes();
   let commandWithoutPrefix = command;
-  
+
   for (const prefix of prefixes) {
     if (command.startsWith(prefix)) {
       commandWithoutPrefix = command.substring(prefix.length).trim();
       break;
     }
   }
-  
+
   // Podziel komendę na części
   const parts = commandWithoutPrefix.split(' ');
   const action = parts[0].toLowerCase();
-  
+
   // Obsługa różnych akcji
   switch (action) {
     case 'click':
@@ -68,7 +67,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'type':
       if (parts.length >= 3) {
         const selector = parts[1];
@@ -78,7 +77,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'navigate':
       if (parts.length >= 2) {
         const url = parts.slice(1).join(' ');
@@ -87,7 +86,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'scroll':
       if (parts.length >= 2) {
         // Obsługa różnych wariantów przewijania
@@ -109,7 +108,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'drag':
       if (parts.length >= 5 && parts[2] === 'to') {
         // /taxy drag #element to #target
@@ -121,7 +120,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'wait':
       if (parts.length >= 2 && !isNaN(parseInt(parts[1]))) {
         // /taxy wait 1000
@@ -130,7 +129,7 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+
     case 'screenshot':
       if (parts.length >= 2) {
         // /taxy screenshot #element
@@ -140,7 +139,7 @@ function processCommand(command: string, source: string): void {
         executeCommand('screenshot', 'body', source);
       }
       break;
-      
+
     case 'automate':
       if (parts.length >= 2) {
         // /taxy automate wypełnij formularz danymi: Jan Kowalski, jan@example.com
@@ -149,12 +148,19 @@ function processCommand(command: string, source: string): void {
         showError(t('chatCommands.invalidCommand'));
       }
       break;
-      
+    case 'test':
+      if (parts.length >= 2) {
+        const selector = parts.slice(1).join(' ');
+        handleTestSelector(selector);
+      } else {
+        showError(t('chatCommands.invalidCommand'));
+      }
+      break;
     case 'help':
       // Wyświetl listę dostępnych komend
       showInfo(t('chatCommands.help'));
       break;
-      
+
     default:
       showError(t('chatCommands.unknownCommand', { command: action }));
       break;
@@ -164,7 +170,7 @@ function processCommand(command: string, source: string): void {
 // Funkcja do wykonania komendy
 function executeCommand(action: string, params: any, source: string): void {
   console.log(`Wykonywanie akcji: ${action}`);
-  
+
   // Pokaż powiadomienie o rozpoczęciu akcji
   showInfo(t('notifications.actionStarted', { action: t(`actions.${action}`) }));
 
@@ -193,7 +199,7 @@ function executeCommand(action: string, params: any, source: string): void {
 function setupChatObservers(): void {
   const platform = identifyPlatform();
   console.log(`Wykryto platformę czatu: ${platform}`);
-  
+
   // Na podstawie platformy, obserwujemy różne elementy
   switch (platform) {
     case 'CHATGPT':
@@ -228,10 +234,10 @@ function observeChatGPT(): void {
       }
     }
   });
-  
+
   // Obserwuj cały dokument, aby złapać moment, gdy pole tekstowe zostanie załadowane
   observer.observe(document.body, { childList: true, subtree: true });
-  
+
   // Sprawdź istniejące pole tekstowe
   const textareaElement = document.querySelector('textarea[data-id="root"]');
   if (textareaElement) {
@@ -251,9 +257,9 @@ function observeBard(): void {
       }
     }
   });
-  
+
   observer.observe(document.body, { childList: true, subtree: true });
-  
+
   const textareaElement = document.querySelector('textarea[aria-label*="Prompt"]');
   if (textareaElement) {
     checkForCommands(textareaElement as HTMLTextAreaElement, 'BARD');
@@ -276,9 +282,9 @@ function observeClaude(): void {
       }
     }
   });
-  
+
   observer.observe(document.body, { childList: true, subtree: true });
-  
+
   const textareaElement = document.querySelector('[contenteditable="true"]');
   if (textareaElement) {
     const text = textareaElement.textContent || '';
@@ -300,9 +306,9 @@ function observePerplexity(): void {
       }
     }
   });
-  
+
   observer.observe(document.body, { childList: true, subtree: true });
-  
+
   const textareaElement = document.querySelector('textarea[placeholder*="Ask"]');
   if (textareaElement) {
     checkForCommands(textareaElement as HTMLTextAreaElement, 'PERPLEXITY');
@@ -319,7 +325,7 @@ function observeGenericChatInputs(): void {
         textareas.forEach(textarea => {
           checkForCommands(textarea, 'GENERIC');
         });
-        
+
         // Szukaj contenteditable divów
         const editables = document.querySelectorAll('[contenteditable="true"]');
         editables.forEach(editable => {
@@ -331,15 +337,15 @@ function observeGenericChatInputs(): void {
       }
     }
   });
-  
+
   observer.observe(document.body, { childList: true, subtree: true });
-  
+
   // Sprawdź istniejące pola tekstowe
   const textareas = document.querySelectorAll('textarea');
   textareas.forEach(textarea => {
     checkForCommands(textarea, 'GENERIC');
   });
-  
+
   // Sprawdź istniejące contenteditable divy
   const editables = document.querySelectorAll('[contenteditable="true"]');
   editables.forEach(editable => {
@@ -354,27 +360,27 @@ function observeGenericChatInputs(): void {
 function checkForCommands(textarea: HTMLTextAreaElement, source: string): void {
   // Aktualna wartość textarea
   let currentValue = textarea.value;
-  
+
   // Monitoruj zmiany w textarea
   textarea.addEventListener('input', () => {
     const newValue = textarea.value;
-    
+
     // Jeśli w nowej wartości jest komenda
     if (hasCommandPrefix(newValue)) {
       currentValue = newValue;
-      
+
       // Dodaj obsługę naciśnięcia Enter, aby wykonać komendę
       textarea.addEventListener('keydown', function commandListener(event) {
         if (event.key === 'Enter' && !event.shiftKey) {
           // Zatrzymaj domyślną akcję (wysłanie formularza)
           event.preventDefault();
-          
+
           // Wykonaj komendę
           processCommand(currentValue, source);
-          
+
           // Wyczyść pole tekstowe
           textarea.value = '';
-          
+
           // Usuwamy nasłuchiwacz, aby nie duplikować wykonania komendy
           textarea.removeEventListener('keydown', commandListener);
         }
@@ -387,10 +393,64 @@ function checkForCommands(textarea: HTMLTextAreaElement, source: string): void {
 function initChatInterceptor(): void {
   console.log('Inicjalizacja interceptora czatu Taxy AI');
   setupChatObservers();
-  
+
   // Pokaż komunikat powitalny
   showInfo('Taxy AI Chat Interceptor aktywny. Użyj /taxy help, aby zobaczyć dostępne komendy.');
 }
 
 // Eksportujemy funkcję inicjalizującą
 export { initChatInterceptor };
+
+
+// Funkcja do debugowania selektorów CSS na danej stronie
+async function handleTestSelector(selector: string) {
+  if (!selector || selector.trim() === '') {
+    console.error('Błąd: Nie podano selektora CSS do testowania');
+    return { success: false, message: 'Nie podano selektora CSS' };
+  }
+
+  try {
+    const { testCSSSelector, highlightElements } = await import('./actionExecutor');
+    const result = testCSSSelector(selector);
+
+    if (result.success) {
+      highlightElements(selector, 3000);
+      console.log(`Test selektora CSS: ${selector}`);
+      console.log(`Znaleziono ${result.count} elementów pasujących do selektora`);
+    } else {
+      console.error(`Test selektora CSS nieudany: ${result.errorMessage}`);
+    }
+
+    // Wyślij wynik do skryptu tła, aby mógł być wyświetlony w UI
+    chrome.runtime.sendMessage({
+      type: 'TEST_SELECTOR_RESULT',
+      payload: {
+        selector,
+        result
+      }
+    });
+    return { success: true, message: `Testowanie selektora: ${selector}` };
+  } catch (error) {
+    console.error("Błąd podczas importowania actionExecutor:", error);
+    return { success: false, message: "Błąd podczas testowania selektora" };
+  }
+}
+
+// Obsługa komend z czatów AI
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey) {
+    // Sprawdź czy znajdujemy się w polu tekstowym lub obszarze tekstowym
+    const activeElement = document.activeElement as HTMLElement;
+    if (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA') {
+      setTimeout(() => {
+        interceptChatCommand();
+      }, 100);
+    }
+  }
+});
+
+function interceptChatCommand() {
+    //  This function needs to be implemented based on the actual implementation details.  
+    //  It would likely involve getting the text from the active input, checking for prefixes, 
+    //  and calling processCommand.  This is a placeholder.
+}

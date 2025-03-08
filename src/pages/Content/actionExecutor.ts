@@ -1,4 +1,63 @@
 
+import { ripple } from './ripple';
+
+// Funkcja do testowania selektorów CSS
+export function testCSSSelector(selector: string): { success: boolean; count: number; errorMessage?: string } {
+  try {
+    const elements = document.querySelectorAll(selector);
+    return {
+      success: elements.length > 0,
+      count: elements.length,
+      errorMessage: elements.length === 0 ? 'Nie znaleziono elementów pasujących do selektora' : undefined
+    };
+  } catch (error) {
+    return {
+      success: false,
+      count: 0,
+      errorMessage: `Błąd podczas testowania selektora: ${error.message}`
+    };
+  }
+}
+
+// Funkcja do wizualnego podświetlania elementów znalezionych przez selektor
+export function highlightElements(selector: string, duration = 2000): void {
+  try {
+    const elements = document.querySelectorAll(selector);
+    if (elements.length === 0) {
+      console.warn(`Nie znaleziono elementów pasujących do selektora: ${selector}`);
+      return;
+    }
+
+    const originalStyles = [];
+    
+    // Zachowaj oryginalne style i podświetl elementy
+    elements.forEach((el: HTMLElement) => {
+      originalStyles.push({
+        element: el,
+        outline: el.style.outline,
+        backgroundColor: el.style.backgroundColor
+      });
+      
+      el.style.outline = '2px solid red';
+      el.style.backgroundColor = 'rgba(255, 0, 0, 0.2)';
+    });
+    
+    // Przywróć oryginalne style po określonym czasie
+    setTimeout(() => {
+      originalStyles.forEach(item => {
+        item.element.style.outline = item.outline;
+        item.element.style.backgroundColor = item.backgroundColor;
+      });
+    }, duration);
+    
+  } catch (error) {
+    console.error(`Błąd podczas podświetlania elementów: ${error.message}`);
+  }
+}
+
+// Reszta istniejącego kodu actionExecutor.ts
+
+
 // Executor dla poleceń z czatów AI
 
 // Funkcja do wykonywania kliku na element o określonym selektorze

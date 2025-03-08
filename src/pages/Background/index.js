@@ -29,9 +29,72 @@ const processCommand = (command, source) => {
     case 'automate':
       executeAutomationAction(params);
       break;
+    case 'test':
+    case 'test-selector':
+      executeTestSelectorAction(params);
+      break;
+    case 'debug':
+      executeDebugAction(params);
+      break;
     default:
       console.log(`Unknown command action: ${action}`);
   }
+};
+
+// Funkcja do testowania selektorów
+const executeTestSelectorAction = (selector) => {
+  getCurrentTab().then(tab => {
+    if (tab) {
+      chrome.tabs.sendMessage(tab.id, {
+        type: 'EXECUTE_ACTION',
+        payload: {
+          action: 'test-selector',
+          selector
+        }
+      }, (response) => {
+        console.log('Wynik testu selektora:', response);
+        // Wyświetl powiadomienie z wynikiem testu
+        if (response && response.success) {
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon-128.png',
+            title: 'Test selektora',
+            message: `Znaleziono ${response.count} elementów dla selektora: ${selector}`
+          });
+        } else {
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: 'icon-128.png',
+            title: 'Test selektora nieudany',
+            message: response?.errorMessage || 'Brak elementów pasujących do selektora'
+          });
+        }
+      });
+    }
+  });
+};
+
+// Funkcja do debugowania strony
+const executeDebugAction = (params) => {
+  getCurrentTab().then(tab => {
+    if (tab) {
+      // Otwarcie DevTools dla aktywnej karty
+      chrome.debugger.attach({ tabId: tab.id }, '1.3', () => {
+        if (chrome.runtime.lastError) {
+          console.error('Błąd podczas dołączania debuggera:', chrome.runtime.lastError);
+          return;
+        }
+        console.log('Debugger dołączony do karty', tab.id);
+        
+        // Wykonaj dodatkowe akcje debugujące w zależności od parametrów
+        if (params.includes('dom')) {
+          chrome.debugger.sendCommand({ tabId: tab.id }, 'DOM.getDocument', {}, (rootNode) => {
+            console.log('DOM document:', rootNode);
+          });
+        }
+      });
+    }
+  });
 };
 
 const executeClickAction = (selector) => {
