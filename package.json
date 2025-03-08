@@ -8,6 +8,9 @@
     "url": "https://github.com:TaxyAI/browser-extension.git"
   },
   "scripts": {
+
+    "clean": "node utils/clean.js",
+
     "build": "node utils/build.js",
     "start": "node utils/webserver.js",
     "prettier": "prettier --write '**/*.{js,jsx,ts,tsx,json,css,scss,md}'",
