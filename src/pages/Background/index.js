@@ -99,25 +99,30 @@ const executeAutomationAction = (instruction) => {
 };
 
 // Obsługa komend z czatów AI
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
   if (message.type === 'CHAT_COMMAND') {
     console.log('Otrzymano polecenie z czatu:', message.payload);
-
-    const { action, params, source } = message.payload;
+    var _message$payload = message.payload,
+      action = _message$payload.action,
+      params = _message$payload.params,
+      source = _message$payload.source;
 
     // Przekaż polecenie do aktualnie aktywnej karty
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    chrome.tabs.query({
+      active: true,
+      currentWindow: true
+    }, function (tabs) {
       if (tabs.length > 0) {
-        const activeTab = tabs[0];
+        var activeTab = tabs[0];
 
         // Wyślij komunikat do content script w aktywnej karcie
         chrome.tabs.sendMessage(activeTab.id, {
           type: 'EXECUTE_ACTION',
           payload: {
-            action,
-            params
+            action: action,
+            params: params
           }
-        }, (response) => {
+        }, function (response) {
           console.log('Wynik wykonania akcji:', response);
         });
       } else {
@@ -126,17 +131,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
 
     // Wysyłamy odpowiedź, aby zwolnić port komunikacyjny
-    sendResponse({ success: true });
+    sendResponse({
+      success: true
+    });
     return true; // Informuje Chrome, że sendResponse zostanie wywołane asynchronicznie
-  }
+  } else if (message.type === 'TAKE_SCREENSHOT') {
+    // Obsługa żądania wykonania zrzutu ekranu
+    chrome.tabs.captureVisibleTab(null, { format: 'png' }, function(dataUrl) {
+      if (chrome.runtime.lastError) {
+        console.error("Błąd podczas wykonywania zrzutu ekranu:", chrome.runtime.lastError);
+        return;
+      }
 
-  if (message.type === 'EXECUTE_AUTOMATION') {
-    console.log('Otrzymano żądanie automatyzacji:', message.payload);
+      // Jeśli podano selektor, wyślij URL danych do content script do przycięcia
+      if (message.payload && message.payload.selector && message.payload.selector !== 'full') {
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (tabs.length > 0) {
+            var activeTab = tabs[0];
+            chrome.tabs.sendMessage(activeTab.id, {
+              type: 'CROP_SCREENSHOT',
+              payload: {
+                dataUrl: dataUrl,
+                selector: message.payload.selector
+              }
+            });
+          }
+        });
+      } else {
+        // Zapisz zrzut ekranu lub wyświetl go w nowej karcie
+        var screenshotUrl = dataUrl;
+        chrome.tabs.create({ url: screenshotUrl });
+      }
+    });
 
-    // Tutaj można zaimplementować bardziej złożoną logikę automatyzacji
-    // wykorzystującą API Taxy i OpenAI
-
-    // Na razie tylko potwierdzamy otrzymanie
     sendResponse({ success: true });
     return true;
   }
